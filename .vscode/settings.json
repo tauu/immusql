@@ -1,5 +1,14 @@
 {
     "cSpell.words": [
-        "immudb"
+        "defaultdb",
+        "immu",
+        "immuclient",
+        "immudb",
+        "immudbe",
+        "immusql",
+        "mtls",
+        "pgsql",
+        "stmts",
+        "tauu"
     ]
 }

@@ -12,7 +12,7 @@ import (
 // The embedded engine does not seem to report any useful information,
 // after an execution. Therefore this does not store any data at the moment.
 type result struct {
-	summary *sql.ExecSummary
+	tx *sql.SQLTx
 }
 
 // -- Result interface --
@@ -20,16 +20,17 @@ type result struct {
 // LastInsertId returns the id of the last row insterted by a statement.
 func (r result) LastInsertId() (int64, error) {
 	// If no summary has been set, there is no id available.
-	if r.summary == nil {
+	if r.tx == nil {
 		return -1, nil
 	}
 	// If there is exactly one auto increment id, that one is returned.
-	if len(r.summary.LastInsertedPKs) == 1 {
-		for _, id := range r.summary.LastInsertedPKs {
+	pks := r.tx.LastInsertedPKs()
+	if len(pks) == 1 {
+		for _, id := range pks {
 			return id, nil
 		}
 	}
-	// If there are serveral inserted primary ids,
+	// If there are several inserted primary ids,
 	// it is not clear, which one should be returned.
 	// TODO check if there is way to determine,
 	// the very last inserted id.
@@ -38,7 +39,7 @@ func (r result) LastInsertId() (int64, error) {
 
 // RowsAffected returns the number of rows affected by executing a statement.
 func (r result) RowsAffected() (int64, error) {
-	return int64(r.summary.UpdatedRows), nil
+	return int64(r.tx.UpdatedRows()), nil
 }
 
 // rows contains the rows retrieved by immudb after executing a query.

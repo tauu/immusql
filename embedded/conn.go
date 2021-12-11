@@ -3,7 +3,6 @@ package embedded
 import (
 	"context"
 	"database/sql/driver"
-	"errors"
 	"strings"
 
 	"github.com/codenotary/immudb/embedded/sql"
@@ -21,7 +20,8 @@ type Config struct {
 // immudbEmbedded is a connection to a immudb instance.
 type immudbEmbedded struct {
 	engine *sql.Engine
-	tx     *tx
+	store  *store.ImmuStore
+	sqlTx  *sql.SQLTx
 }
 
 // Connect establishes a new connection to an immudb instance.
@@ -31,32 +31,36 @@ func Open(ctx context.Context, config Config, dbName string) (driver.Conn, error
 	if err != nil {
 		return nil, err
 	}
-	dataStore, err := store.Open(config.SqlPath, store.DefaultOptions())
-	if err != nil {
-		return nil, err
-	}
+	// dataStore, err := store.Open(config.SqlPath, store.DefaultOptions())
+	//if err != nil {
+	//	return nil, err
+	//}
 	// Create a sql engine.
-	engine, err := sql.NewEngine(catalogStore, dataStore, []byte("sql"))
+	sqlOpts := sql.DefaultOptions()
+	engine, err := sql.NewEngine(catalogStore, sqlOpts)
 	if err != nil {
 		return nil, err
 	}
 	// Wait until the engine is ready.
-	err = engine.EnsureCatalogReady(make(<-chan struct{}))
+	//err = engine.EnsureCatalogReady(make(<-chan struct{}))
+	//if err != nil {
+	//	return nil, err
+	//}
+	catalog, err := engine.Catalog(nil)
 	if err != nil {
 		return nil, err
 	}
-	ok, err := engine.ExistDatabase(dbName)
-	if err != nil {
-		return nil, err
-	}
+	//ok, err := engine.ExistDatabase(dbName)
+	ok := catalog.ExistDatabase(dbName)
 	// Create the database if it does not exist.
 	if !ok {
-		_, err := engine.ExecStmt("CREATE DATABASE "+dbName, map[string]interface{}{}, false)
+		_, _, err := engine.Exec("CREATE DATABASE "+dbName, map[string]interface{}{}, nil)
 		if err != nil {
 			return nil, err
 		}
 	}
-	err = engine.UseDatabase(dbName)
+	//err = engine.UseDatabase(dbName)
+	err = engine.SetDefaultDatabase(dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -77,18 +81,28 @@ func (conn *immudbEmbedded) Prepare(query string) (driver.Stmt, error) {
 // Begin start a new transaction.
 func (conn *immudbEmbedded) Begin() (driver.Tx, error) {
 	// This method is not implemented as it is deprecated anyway.
-	return nil, errors.New("not implemented")
+	return nil, common.ErrNotImplemented
 }
 
 // Close closes the database connection.
 func (conn *immudbEmbedded) Close() error {
-	return conn.engine.Close()
+	return conn.store.Close()
 }
 
 // -- ConnBeginTx interface --
 func (conn *immudbEmbedded) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	conn.tx = &tx{conn: conn, parts: []txPart{}}
-	return conn.tx, nil
+	// Abort if another transaction is active,
+	// as nested transactions are currently not supported.
+	if conn.sqlTx != nil {
+		return nil, common.ErrNestedTxNotSupported
+	}
+	stmt := &sql.BeginTransactionStmt{}
+	sqlTx, err := conn.execStmt(stmt)
+	if err != nil {
+		return nil, err
+	}
+	conn.sqlTx = sqlTx
+	return &tx{conn: conn, ctx: ctx}, nil
 }
 
 // -- ConnPrepareContext interface --
@@ -102,15 +116,10 @@ func (conn *immudbEmbedded) PrepareContext(ctx context.Context, query string) (d
 
 // ExecContext executes a statement and returns the result.
 func (conn *immudbEmbedded) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	// Create a statement and execute it.
+	// Create a statement.
 	stmts, err := sql.Parse(strings.NewReader(query))
 	if err != nil {
 		return nil, err
-	}
-	// If a transaction has been started just append the query.
-	if conn.tx != nil {
-		conn.tx.add(stmts, args)
-		return nil, nil
 	}
 	stmt := stmt{
 		query: stmts,
@@ -125,12 +134,7 @@ func (conn *immudbEmbedded) ExecContext(ctx context.Context, query string, args 
 // QueryContext executes a query and returns the retrieved rows.
 // This method if required to satisfy the QueryerContext interface of sql/driver.
 func (conn *immudbEmbedded) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	// If a transaction has been started report and error,
-	// as immudb currently only supports transactions with a single request.
-	if conn.tx != nil {
-		return nil, common.ErrNoQueryInTx
-	}
-	// Create a statement and return the query result.
+	// Create a statement.
 	stmts, err := sql.Parse(strings.NewReader(query))
 	if err != nil {
 		return nil, err
@@ -139,6 +143,7 @@ func (conn *immudbEmbedded) QueryContext(ctx context.Context, query string, args
 		query: stmts,
 		conn:  conn,
 	}
+	// Run it and return the result.
 	return stmt.QueryContext(ctx, args)
 }
 
@@ -163,7 +168,11 @@ func (conn *immudbEmbedded) ResetSession(ctx context.Context) error {
 
 // ExistTable checks if a table with the given name exist in the connected database.
 func (conn *immudbEmbedded) ExistTable(name string) (bool, error) {
-	db, err := conn.engine.DatabaseInUse()
+	catalog, err := conn.engine.Catalog(nil)
+	if err != nil {
+		return false, err
+	}
+	db, err := catalog.GetDatabaseByName(conn.engine.DefaultDatabase())
 	if err != nil {
 		return false, err
 	}
@@ -171,15 +180,9 @@ func (conn *immudbEmbedded) ExistTable(name string) (bool, error) {
 }
 
 // -- util --
-
-// execContext executes a statement and returns the result.
-// In contrast to the public ExecContext method, this method,
-// will exectue the query also if a transaction has been started.
-func (conn *immudbEmbedded) execContext(ctx context.Context, stmts []sql.SQLStmt, args []driver.NamedValue) (driver.Result, error) {
-	// Create a statement and return the query result.
-	stmt := stmt{
-		query: stmts,
-		conn:  conn,
-	}
-	return stmt.ExecContext(ctx, args)
+// execStmt executes a single statement and returns the new Tx.
+func (conn *immudbEmbedded) execStmt(stmt sql.SQLStmt) (*sql.SQLTx, error) {
+	stmts := []sql.SQLStmt{stmt}
+	sqlTx, _, err := conn.engine.ExecPreparedStmts(stmts, nil, conn.sqlTx)
+	return sqlTx, err
 }

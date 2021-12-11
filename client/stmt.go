@@ -3,10 +3,10 @@ package client
 import (
 	"context"
 	"database/sql/driver"
-	"fmt"
 	"strconv"
 
-	"github.com/codenotary/immudb/pkg/client"
+	"github.com/codenotary/immudb/pkg/api/schema"
+	"github.com/tauu/immusql/common"
 )
 
 // Stmt is a "prepared" SQL statement.
@@ -14,8 +14,8 @@ import (
 // at that the moment, though they seem to be supported using the pgsql interface.
 // Therefore currently the query is just stored for later execution.
 type stmt struct {
-	query  string
-	client client.ImmuClient
+	query string
+	conn  *immudbConn
 }
 
 // -- Stmt interface --
@@ -40,14 +40,14 @@ func (s *stmt) NumInput() int {
 // This method if required to satisfy the Stmt interface of sql/driver.
 func (s *stmt) Exec(args []driver.Value) (driver.Result, error) {
 	// This method is deprecated and therefore not implemented.
-	return nil, fmt.Errorf("not implemeneted")
+	return nil, common.ErrNotImplemented
 }
 
 // Query executes the statement and returns the retrieved rows.
 // This method if required to satisfy the Stmt interface of sql/driver.
 func (s *stmt) Query(args []driver.Value) (driver.Rows, error) {
 	// This method is deprecated and therefore not implemented.
-	return nil, fmt.Errorf("not implemeneted")
+	return nil, common.ErrNotImplemented
 }
 
 // -- StmtExecContext interface --
@@ -57,11 +57,19 @@ func (s *stmt) Query(args []driver.Value) (driver.Rows, error) {
 func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
 	// Convert arguments to the expected format and execute the query.
 	params := namedValueToMapString(args)
-	res, err := s.client.SQLExec(ctx, s.query, params)
+	// Execute the query as part of the transaction,
+	// if there is an active transaction.
+	var res *schema.SQLExecResult
+	var err error
+	if s.conn.tx != nil {
+		err = s.conn.tx.SQLExec(ctx, s.query, params)
+	} else {
+		res, err = s.conn.client.SQLExec(ctx, s.query, params)
+	}
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("exec response data: %s", res.String())
+	//fmt.Printf("exec response data: %s", res.String())
 	return result{data: res}, nil
 }
 
@@ -72,7 +80,15 @@ func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (drive
 func (s *stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	// Convert arguments to the expected format and execute the query.
 	params := namedValueToMapString(args)
-	res, err := s.client.SQLQuery(ctx, s.query, params, false)
+	// Execute the query as part of the transaction,
+	// if there is an active transaction.
+	var res *schema.SQLQueryResult
+	var err error
+	if s.conn.tx != nil {
+		res, err = s.conn.tx.SQLQuery(ctx, s.query, params)
+	} else {
+		res, err = s.conn.client.SQLQuery(ctx, s.query, params, false)
+	}
 	if err != nil {
 		return nil, err
 	}

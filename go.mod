@@ -3,7 +3,7 @@ module github.com/tauu/immusql
 go 1.17
 
 require (
-	github.com/codenotary/immudb v1.1.0
+	github.com/codenotary/immudb v1.2.0
 	google.golang.org/grpc v1.39.0
 )
 

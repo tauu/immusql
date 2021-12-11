@@ -22,18 +22,28 @@ func (r result) LastInsertId() (int64, error) {
 	if r.data == nil {
 		return -1, nil
 	}
-	// If there is exactly one auto increment id, that one is returned.
-	if len(r.data.LastInsertedPKs) == 1 {
-		for _, id := range r.data.LastInsertedPKs {
-			if id == nil {
+	// Get the last executed transaction.
+	txs := r.data.GetTxs()
+	if len(txs) < 1 {
+		return -1, nil
+	}
+	tx := txs[len(txs)-1]
+	// If there was more then one primary key in the last transaction,
+	// it is currently not possible to determine, which was created last.
+	// In this case no PK is returned.
+	pks := tx.GetLastInsertedPKs()
+	if len(pks) == 1 {
+		for _, pk := range pks {
+			// If the numeric value of pk is 0, the primary key is not an integer.
+			// In this case -1 is returned, as database/sql does not support
+			// any other type for primary keys.
+			n := pk.GetN()
+			if n == 0 {
 				return -1, nil
 			}
-			// The primary key should always be an integer.
-			return id.GetN(), nil
+			return n, nil
 		}
 	}
-	// Immudb does not support auto increment columns at the moment,
-	// therefore this will never be set.
 	return -1, nil
 }
 
@@ -42,7 +52,13 @@ func (r result) RowsAffected() (int64, error) {
 	if r.data == nil {
 		return 0, nil
 	}
-	return int64(r.data.UpdatedRows), nil
+	// Get the last executed transaction.
+	txs := r.data.GetTxs()
+	if len(txs) < 1 {
+		return 0, nil
+	}
+	tx := txs[len(txs)-1]
+	return int64(tx.UpdatedRows), nil
 }
 
 // rows contains the rows retrieved by immudb after executing a query.
