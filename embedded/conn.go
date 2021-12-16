@@ -10,13 +10,6 @@ import (
 	"github.com/tauu/immusql/common"
 )
 
-// Config contains the configuration for creating
-// an embedded immudb engine.
-type Config struct {
-	CatalogPath string
-	SqlPath     string
-}
-
 // immudbEmbedded is a connection to a immudb instance.
 type immudbEmbedded struct {
 	engine *sql.Engine
@@ -25,9 +18,9 @@ type immudbEmbedded struct {
 }
 
 // Connect establishes a new connection to an immudb instance.
-func Open(ctx context.Context, config Config, dbName string) (driver.Conn, error) {
+func Open(ctx context.Context, path string, dbName string) (driver.Conn, error) {
 	// Open a catalog and data store for the sql engine.
-	catalogStore, err := store.Open(config.CatalogPath, store.DefaultOptions())
+	catalogStore, err := store.Open(path, store.DefaultOptions())
 	if err != nil {
 		return nil, err
 	}

@@ -6,7 +6,6 @@ import (
 
 	"github.com/codenotary/immudb/pkg/client"
 	driverClient "github.com/tauu/immusql/client"
-	"github.com/tauu/immusql/common"
 	"github.com/tauu/immusql/embedded"
 )
 
@@ -48,11 +47,6 @@ func (c *connector) openClient(ctx context.Context) (driver.Conn, error) {
 
 // openEmbedded creates an embedded immudb engine.
 func (c *connector) openEmbedded(ctx context.Context) (driver.Conn, error) {
-	// Load the embedded configuration.
-	config, ok := embeddedConfigurations[c.config.Host]
-	if !ok {
-		return nil, common.ErrNoConfigRegistered
-	}
 	// Open an engine for it.
-	return embedded.Open(ctx, config, c.config.Name)
+	return embedded.Open(ctx, c.config.Path, c.config.Name)
 }

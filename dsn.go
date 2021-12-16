@@ -3,6 +3,7 @@ package immusql
 import (
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -42,12 +43,27 @@ func parseDSN(dsn string) (dsnConfig, error) {
 		}
 		conf.Port = portInt
 	}
-	// If no database is given, use the database named default.
-	name := url.Path
-	if name == "" {
-		conf.Name = "defaultdb"
+	// Parse the datebase name and the path to it,
+	// if the embedded engine is used.
+	path := url.Path
+	if conf.Embedded {
+		// Set the path to the embedded database.
+		conf.Path = filepath.Dir(filepath.FromSlash(path))
+		// Use the last part of the path as database name.
+		conf.Name = filepath.Base(path)
+		if conf.Name == "/" || conf.Name == "." {
+			// "/" and "." are not valid database names.
+			// An empty name is set and replaced with the
+			// name of the default database below.
+			conf.Name = ""
+		}
 	} else {
-		conf.Name = strings.TrimPrefix(name, "/")
+		// Use the full path as database name.
+		conf.Name = strings.TrimPrefix(path, "/")
+	}
+	// If no database is given, use the database named defaultdb.
+	if conf.Name == "" {
+		conf.Name = "defaultdb"
 	}
 	return conf, nil
 }
