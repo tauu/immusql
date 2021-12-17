@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"time"
 
 	"github.com/codenotary/immudb/pkg/api/schema"
 	"github.com/tauu/immusql/common"
@@ -115,6 +116,9 @@ func (r *rows) Next(dest []driver.Value) error {
 			dest[i] = v.B
 		case *schema.SQLValue_Bs:
 			dest[i] = v.Bs
+		case *schema.SQLValue_Ts:
+			// Convert micro seconds since epoch into a time value.
+			dest[i] = time.UnixMicro(v.Ts)
 		}
 	}
 	// Advance the index.
