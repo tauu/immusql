@@ -12,7 +12,8 @@ import (
 // The embedded engine does not seem to report any useful information,
 // after an execution. Therefore this does not store any data at the moment.
 type result struct {
-	tx *sql.SQLTx
+	tx          *sql.SQLTx
+	committedTx []*sql.SQLTx
 }
 
 // -- Result interface --
@@ -39,7 +40,16 @@ func (r result) LastInsertId() (int64, error) {
 
 // RowsAffected returns the number of rows affected by executing a statement.
 func (r result) RowsAffected() (int64, error) {
-	return int64(r.tx.UpdatedRows()), nil
+	// Sum up the updated rows reported by all committed operations.
+	count := int64(0)
+	for _, tx := range r.committedTx {
+		count = count + int64(tx.UpdatedRows())
+	}
+	// If a new tx is set, also include the updated rows count of it in the total.
+	if r.tx != nil {
+		count = count + int64(r.tx.UpdatedRows())
+	}
+	return count, nil
 }
 
 // rows contains the rows retrieved by immudb after executing a query.

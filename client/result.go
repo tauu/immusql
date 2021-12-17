@@ -52,13 +52,17 @@ func (r result) RowsAffected() (int64, error) {
 	if r.data == nil {
 		return 0, nil
 	}
-	// Get the last executed transaction.
+	// Check if there is at least one tx.
 	txs := r.data.GetTxs()
 	if len(txs) < 1 {
 		return 0, nil
 	}
-	tx := txs[len(txs)-1]
-	return int64(tx.UpdatedRows), nil
+	// Create the sum of all affected rows in the txs.
+	count := int64(0)
+	for _, tx := range txs {
+		count = count + int64(tx.GetUpdatedRows())
+	}
+	return count, nil
 }
 
 // rows contains the rows retrieved by immudb after executing a query.

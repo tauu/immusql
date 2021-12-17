@@ -48,11 +48,11 @@ func (s *stmt) Query(args []driver.Value) (driver.Rows, error) {
 func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
 	// Convert arguments to the expected format and execute the query.
 	params := common.NamedValueToMapString(args)
-	tx, _, err := s.conn.engine.ExecPreparedStmts(s.query, params, s.conn.sqlTx)
+	tx, committedTx, err := s.conn.engine.ExecPreparedStmts(s.query, params, s.conn.sqlTx)
 	if err != nil {
 		return nil, err
 	}
-	return result{tx: tx}, nil
+	return result{tx: tx, committedTx: committedTx}, nil
 }
 
 // -- StmtQueryContext interface --
