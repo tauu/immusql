@@ -6,6 +6,7 @@ stages:
   - test
 
 code_quality:
+  services:            # Shut off Docker-in-Docker
   tags:
     - codequality-no-dind
   variables:
