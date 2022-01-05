@@ -100,6 +100,8 @@ github.com/codenotary/immudb v1.1.0 h1:7Xo36mNKYcRzaPYbYAh7DbfZHadWAiLXDH8wSCY1K
 github.com/codenotary/immudb v1.1.0/go.mod h1:e8IZ4lLlMu5Rz2r3miw5vaYjdoV+Ec81iEFdnU0ZZv8=
 github.com/codenotary/immudb v1.2.0 h1:5MxIgcANmyWDYhbSTZAud86MB53bUpyf0qmAUKlEkTU=
 github.com/codenotary/immudb v1.2.0/go.mod h1:bodj5Z9/L9cZ/jqgT0xcURJ8dj5QmM9HPh/Dg15ufTk=
+github.com/codenotary/immudb v1.2.1 h1:GyjSEf4tuU1NJdYd/c1iDuiSxngfA2N6E/OKjsi9My0=
+github.com/codenotary/immudb v1.2.1/go.mod h1:bodj5Z9/L9cZ/jqgT0xcURJ8dj5QmM9HPh/Dg15ufTk=
 github.com/coreos/go-semver v0.2.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
 github.com/coreos/go-semver v0.3.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
 github.com/coreos/go-systemd v0.0.0-20180511133405-39ca1b05acc7/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
