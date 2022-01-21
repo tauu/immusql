@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/codenotary/immudb/pkg/api/schema"
@@ -81,7 +82,18 @@ func (r *rows) Columns() []string {
 	// Create a sting array and insert all names into it.
 	columns := make([]string, len(immudbCols))
 	for i, col := range immudbCols {
-		columns[i] = col.Name
+		name := col.GetName()
+		// immudb returns column names enclosed in ( )
+		// and also includes the name of the database.
+		// database/sql expects only the column name though,
+		// and therefore these values have to be stripped.
+		name = strings.TrimSuffix(name, ")")
+		name = strings.TrimPrefix(name, "(")
+		index := strings.LastIndex(name, ".")
+		if index > -1 {
+			name = name[index+1:]
+		}
+		columns[i] = name
 	}
 	return columns
 }
@@ -107,7 +119,7 @@ func (r *rows) Next(dest []driver.Value) error {
 	for i, value := range values {
 		switch v := value.Value.(type) {
 		case *schema.SQLValue_Null:
-			dest[i] = v.Null
+			dest[i] = nil
 		case *schema.SQLValue_N:
 			dest[i] = v.N
 		case *schema.SQLValue_S:
@@ -144,9 +156,9 @@ func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
 
 // ColumnTypeNullable returns if the index-th column in the result is nullable.
 func (r *rows) ColumnTypeNullable(index int) (nullable, ok bool) {
-	r.data.Columns[index].GetType()
-	// Immudb does currently not support nullable columns,
-	// therefore the result is always false.
+	// Immudb supports nullable columns,
+	// but there does not seem to be a way to determine
+	// if a column can be nullable using only the result of a query.
 	return false, true
 }
 
