@@ -22,9 +22,7 @@ func (t *tx) Commit() error {
 	}
 	// Commit the transaction.
 	_, err := t.conn.tx.Commit(t.ctx)
-	if err == nil {
-		t.finish()
-	}
+	t.finish()
 	return err
 }
 
@@ -36,9 +34,7 @@ func (t *tx) Rollback() error {
 	}
 	// Rollback the transaction.
 	err := t.conn.tx.Rollback(t.ctx)
-	if err == nil {
-		t.finish()
-	}
+	t.finish()
 	return err
 }
 

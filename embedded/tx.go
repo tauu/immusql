@@ -23,10 +23,7 @@ func (t *tx) Commit() error {
 	}
 	// Commit the transaction.
 	_, err := t.conn.execStmt(&sql.CommitStmt{})
-	if err == nil {
-		t.finish()
-	}
-	return err
+	return t.finish(err)
 }
 
 // Rollback rolls back the transaction.
@@ -35,19 +32,24 @@ func (t *tx) Rollback() error {
 	if t.conn.sqlTx == nil {
 		return common.ErrTxAlreadyFinished
 	}
-	// Commit the transaction.
+	// Rollback the transaction.
 	_, err := t.conn.execStmt(&sql.RollbackStmt{})
-	if err == nil {
-		t.finish()
-	}
-	return err
+	// In any case mark the transaction as finished.
+	// Otherwise no further operations can be performed.
+	return t.finish(err)
 }
 
 // -- helper --
 
 // finish completes the transaction, and informs the connection
 // to no longer execute queries in the context of the transaction.
-func (t *tx) finish() {
+func (t *tx) finish(err error) error {
+	// If an error occurred while commiting or rolling back
+	// the transaction, it is cancelled to resume regular operation.
+	if err != nil {
+		err = t.conn.sqlTx.Cancel()
+	}
 	// If the transaction was completed, remove it from the connection.
 	t.conn.sqlTx = nil
+	return err
 }
