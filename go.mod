@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/codenotary/immudb v1.2.2
+	github.com/rs/zerolog v1.15.0
 	github.com/stretchr/testify v1.7.0
 )
 
