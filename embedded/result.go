@@ -2,6 +2,8 @@ package embedded
 
 import (
 	"database/sql/driver"
+	"errors"
+	"io"
 	"reflect"
 
 	"github.com/codenotary/immudb/embedded/sql"
@@ -87,6 +89,9 @@ func (r *rows) Close() error {
 func (r *rows) Next(dest []driver.Value) error {
 	// Get the rows.
 	row, err := r.data.Read()
+	if errors.Is(err, sql.ErrNoMoreRows) {
+		return io.EOF
+	}
 	if err != nil {
 		return err
 	}
