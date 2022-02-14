@@ -3,6 +3,7 @@ package embedded
 import (
 	"database/sql/driver"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 
@@ -14,8 +15,9 @@ import (
 // The embedded engine does not seem to report any useful information,
 // after an execution. Therefore this does not store any data at the moment.
 type result struct {
-	tx          *sql.SQLTx
-	committedTx []*sql.SQLTx
+	previousLastPks map[string]int64
+	tx              *sql.SQLTx
+	committedTx     []*sql.SQLTx
 }
 
 // -- Result interface --
@@ -25,24 +27,42 @@ func (r result) LastInsertId() (int64, error) {
 	// If no summary has been set, there is no id available.
 	if r.tx == nil {
 		return -1, nil
+
 	}
-	// If there is exactly one auto increment id, that one is returned.
-	pks := r.tx.LastInsertedPKs()
-	if len(pks) == 1 {
-		for _, id := range pks {
+
+	lastPks := r.tx.LastInsertedPKs()
+	fmt.Println("lastpks:", lastPks)
+
+	if r.previousLastPks == nil {
+		if len(lastPks) == 1 {
+			for _, id := range lastPks {
+				return id, nil
+			}
+		}
+		return -1, nil
+	}
+
+	for table, id := range lastPks {
+		previousId, ok := r.previousLastPks[table]
+		if !ok {
+			return id, nil
+		}
+		if previousId != id {
 			return id, nil
 		}
 	}
-	// If there are several inserted primary ids,
-	// it is not clear, which one should be returned.
-	// TODO check if there is way to determine,
-	// the very last inserted id.
+
 	return -1, nil
+
 }
 
 // RowsAffected returns the number of rows affected by executing a statement.
 func (r result) RowsAffected() (int64, error) {
 	// Sum up the updated rows reported by all committed operations.
+
+	// store previous value of updated rows when the query is executed and then
+	// calculate the difference between that and the currento one and return
+	// that instance
 	count := int64(0)
 	for _, tx := range r.committedTx {
 		count = count + int64(tx.UpdatedRows())
