@@ -14,39 +14,92 @@ import (
 
 // result contains the data reported by immudb after executing a statement.
 type result struct {
-	data *schema.SQLExecResult
+	data            *schema.SQLExecResult
+	previousLastPks map[string]int64
 }
 
 // -- Result interface --
 
 // LastInsertId returns the id of the last row insterted by a statement.
 func (r result) LastInsertId() (int64, error) {
-	if r.data == nil {
-		return -1, nil
-	}
-	// Get the last executed transaction.
-	txs := r.data.GetTxs()
-	if len(txs) < 1 {
-		return -1, nil
-	}
-	tx := txs[len(txs)-1]
-	// If there was more then one primary key in the last transaction,
-	// it is currently not possible to determine, which was created last.
-	// In this case no PK is returned.
-	pks := tx.GetLastInsertedPKs()
-	if len(pks) == 1 {
-		for _, pk := range pks {
-			// If the numeric value of pk is 0, the primary key is not an integer.
-			// In this case -1 is returned, as database/sql does not support
-			// any other type for primary keys.
-			n := pk.GetN()
-			if n == 0 {
-				return -1, nil
-			}
-			return n, nil
-		}
-	}
+	fmt.Println("this is data", r.data)
+	// if r.data == nil {
+	// 	return -1, nil
+	// }
+	// // Get the last executed transaction.
+	// txs := r.data.GetTxs()
+	// if len(txs) < 1 {
+	// 	return -1, nil
+	// }
+	// tx := txs[len(txs)-1]
+	// // If there was more then one primary key in the last transaction,
+	// // it is currently not possible to determine, which was created last.
+	// // In this case no PK is returned.
+	// lastPks := tx.GetLastInsertedPKs()
+
+	// if r.previousLastPks == nil {
+	// 	if len(lastPks) == 1 {
+	// 		for _, id := range lastPks {
+	// 			return id, nil
+	// 		}
+	// 	}
+	// 	return -1, nil
+	// }
+
+	// for table, id := range lastPks {
+	// 	previousId, ok := r.previousLastPks[table]
+	// 	if !ok {
+	// 		return id, nil
+	// 	}
+	// 	if previousId != id {
+	// 		return id, nil
+	// 	}
+	// }
+
+	// return -1, nil
+
+	// if len(pks) == 1 {
+	// 	for _, pk := range pks {
+	// 		// If the numeric value of pk is 0, the primary key is not an integer.
+	// 		// In this case -1 is returned, as database/sql does not support
+	// 		// any other type for primary keys.
+	// 		n := pk.GetN()
+	// 		if n == 0 {
+	// 			return -1, nil
+	// 		}
+	// 		return n, nil
+	// 	}
+	// }
+	// return -1, nil
+
+	// if r.tx == nil {
+	// 	return -1, nil
+
+	// }
+
+	// LastPks := r.tx.LastInsertedPKs()
+
+	// if r.previousLastPks == nil {
+	// 	if len(LastPks) == 1 {
+	// 		for _, id := range LastPks {
+	// 			return id, nil
+	// 		}
+	// 	}
+	// 	return -1, nil
+	// }
+
+	// for table, id := range LastPks {
+	// 	previousId, ok := r.previousLastPks[table]
+	// 	if !ok {
+	// 		return id, nil
+	// 	}
+	// 	if previousId != id {
+	// 		return id, nil
+	// 	}
+	// }
+
 	return -1, nil
+
 }
 
 // RowsAffected returns the number of rows affected by executing a statement.

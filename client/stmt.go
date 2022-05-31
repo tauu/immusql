@@ -55,6 +55,29 @@ func (s *stmt) Query(args []driver.Value) (driver.Rows, error) {
 // ExecContext executes the statement and returns the result.
 // This method if required to satisfy the StmtExecContext interface of sql/driver.
 func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+
+	// ////// NEW CODE
+	// previousLastPks := map[string]int64{}
+
+	// if s.conn.tx != nil {
+	// 	lastPKs := s.conn.tx.LastInsertedPKs()
+
+	// 	for k, v := range lastPKs {
+	// 		previousLastPks[k] = v
+	// 	}
+	// }
+
+	// // Convert arguments to the expected format and execute the query.
+	// params := common.NamedValueToMapString(args)
+	// tx, committedTx, err := s.conn.engine.ExecPreparedStmts(s.query, params, s.conn.sqlTx)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// return result{previousLastPks: previousLastPks, tx: tx, committedTx: committedTx}, nil
+
+	//// OLD CODE
+
 	// Convert arguments to the expected format and execute the query.
 	params := namedValueToMapString(args)
 	// Execute the query as part of the transaction,
