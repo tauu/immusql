@@ -3,7 +3,6 @@ package embedded
 import (
 	"database/sql/driver"
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
 
@@ -15,9 +14,9 @@ import (
 // The embedded engine does not seem to report any useful information,
 // after an execution. Therefore this does not store any data at the moment.
 type result struct {
-	previousLastPks map[string]int64
-	tx              *sql.SQLTx
-	committedTx     []*sql.SQLTx
+	previousLastInsertedPKs map[string]int64
+	tx                      *sql.SQLTx
+	committedTx             []*sql.SQLTx
 }
 
 // -- Result interface --
@@ -30,28 +29,65 @@ func (r result) LastInsertId() (int64, error) {
 
 	}
 
-	lastPks := r.tx.LastInsertedPKs()
-	fmt.Println("lastpks:", lastPks)
+	// Load all last inserted PKs.
+	// This yields a map, with (table_name => last_inserted_id) pairs.
+	// As maps in golang are not ordered in any way, there is no way to determine,
+	// which value was inserted last.
+	// If the query corresponding to this result is part of a transaction,
+	// lastPKs can contain multiple entries. More specifically, the map will
+	// contain one value for each table with an autoincrement column, into which
+	// a row was inserted during the transaction.
+	lastPKs := r.tx.LastInsertedPKs()
 
-	if r.previousLastPks == nil {
-		if len(lastPks) == 1 {
-			for _, id := range lastPks {
+	// To determine the one id that was inserted last, we have to consider 2 cases.
+
+	// Case 1: The result does not correspond to a query being part of a transaction.
+	// In this there is no stored previous value for lastInsertedPKs.
+	// The map should contain one value, if it inserted a value
+	// into a table with an autoincrement column.
+	if r.previousLastInsertedPKs == nil {
+		if len(lastPKs) == 1 {
+			// The single value in lastPKs is the last primary key.
+			for _, id := range lastPKs {
 				return id, nil
 			}
 		}
+		// There is more than one value in LastInsertedPKs().
+		// As maps are not ordered in golang, there is no way,
+		// to determine which one was inserted last.
 		return -1, nil
 	}
 
-	for table, id := range lastPks {
-		previousId, ok := r.previousLastPks[table]
+	// Case 2: The result corresponds to a query that is part of a transaction.
+	// Before the query was executed, the value os LastInsertedPKs() was copied
+	// into r.previousLastPKs. This value is compared with the current value.
+	lastPK := int64(-1)
+	foundPK := 0
+	for table, id := range lastPKs {
+		// Test if a last inserted PK value existed for this table previously.
+		previousId, ok := r.previousLastInsertedPKs[table]
+		// If no primary key value has been inserted into the table
+		// by the query corresponding to this result.
 		if !ok {
-			return id, nil
+			lastPK = id
+			foundPK++
 		}
-		if previousId != id {
-			return id, nil
+		// If the current last inserted PK value differs from the
+		// previous value for the table, a new primary key has been
+		// inserted into the table.
+		if ok && previousId != id {
+			lastPK = id
+			foundPK++
 		}
 	}
+	//fmt.Printf("lastInsertedID: %v, #foundPL: %v", lastPK, foundPK)
+	// Only if the comparison above found exactly one possible value
+	// for the last inserted PK, we do know its value.
+	if foundPK == 1 {
+		return lastPK, nil
+	}
 
+	// The last inserted PK could not be identified.
 	return -1, nil
 
 }

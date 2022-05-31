@@ -47,13 +47,17 @@ func (s *stmt) Query(args []driver.Value) (driver.Rows, error) {
 // ExecContext executes the statement and returns the result.
 func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
 
-	previousLastPks := map[string]int64{}
-
+	// If the statement is part of a transaction
+	// the previous LastInsertedPKs are stored
+	// to determine later on, which PKs have been
+	// inserted by this statement.
+	var previousLastInsertedPKs map[string]int64
 	if s.conn.sqlTx != nil {
 		lastPKs := s.conn.sqlTx.LastInsertedPKs()
+		previousLastInsertedPKs = make(map[string]int64, len(lastPKs))
 
 		for k, v := range lastPKs {
-			previousLastPks[k] = v
+			previousLastInsertedPKs[k] = v
 		}
 	}
 
@@ -64,7 +68,7 @@ func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (drive
 		return nil, err
 	}
 
-	return result{previousLastPks: previousLastPks, tx: tx, committedTx: committedTx}, nil
+	return result{previousLastInsertedPKs: previousLastInsertedPKs, tx: tx, committedTx: committedTx}, nil
 }
 
 // -- StmtQueryContext interface --
