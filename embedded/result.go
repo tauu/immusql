@@ -157,7 +157,7 @@ func (r *rows) Next(dest []driver.Value) error {
 		return err
 	}
 	// Write value to destination slice.
-	values := row.Values
+	values := row.ValuesBySelector
 	for i, col := range immudbCols {
 		value := values[col.Selector()]
 		switch value.Type() {

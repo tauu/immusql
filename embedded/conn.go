@@ -52,8 +52,7 @@ func Open(ctx context.Context, path string, dbName string) (driver.Conn, error) 
 			return nil, err
 		}
 	}
-	//err = engine.UseDatabase(dbName)
-	err = engine.SetDefaultDatabase(dbName)
+	err = engine.SetCurrentDatabase(dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +164,7 @@ func (conn *immudbEmbedded) ExistTable(name string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	db, err := catalog.GetDatabaseByName(conn.engine.DefaultDatabase())
+	db, err := catalog.GetDatabaseByName(conn.engine.CurrentDatabase())
 	if err != nil {
 		return false, err
 	}
