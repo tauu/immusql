@@ -21,7 +21,7 @@ func TestContainerTransaction(t *testing.T) {
 
 	// Open a connection
 	db, err := openConn()
-	if !assert.NoError(t, err, "An error occurred openning connection") {
+	if !assert.NoError(t, err, "An error occurred opening connection") {
 		t.Skip()
 	}
 	//defer db.Close()
@@ -35,7 +35,7 @@ func TestContainerTransaction(t *testing.T) {
 	// Count the amount of rows before the transaction
 	rowsBefore, err := db.Query("SELECT COUNT(*) FROM test")
 	if err != nil {
-		log.Error().Err(err).Msg("An error occurred quering before transaction")
+		log.Error().Err(err).Msg("An error occurred querying before transaction")
 	}
 	defer rowsBefore.Close()
 
@@ -54,14 +54,14 @@ func TestContainerTransaction(t *testing.T) {
 	}
 
 	// Insert data to the database
-	_, err = tx.Exec("INSERT INTO test(name, age, isSingle) VALUES(?, ?, ?)", "Maria", 40, false)
+	_, err = tx.Exec("UPSERT INTO test(id, name, age, isSingle) VALUES(?, ?, ?, ?)", 1, "Maria", 40, false)
 	if err != nil {
 		log.Error().Err(err).Msg("An error occurred while inserting data to the database (1st record)")
 
 	}
 
 	// Insert data to the database
-	_, err = tx.Exec("INSERT INTO tests(name, age, isSingle) VALUES(?, ?, ?)", "Marc", 22, true)
+	_, err = tx.Exec("UPSERT INTO tests(id, name, age, isSingle) VALUES(?, ?, ?, ?)", 2, "Marc", 22, true)
 	if err != nil {
 		log.Error().Err(err).Msg("An error occurred while inserting data to the database (2nd record)")
 
@@ -70,13 +70,13 @@ func TestContainerTransaction(t *testing.T) {
 	// Commit the transaction
 	err = tx.Commit()
 	if err != nil {
-		log.Error().Err(err).Msg("An error occurred commiting the transaction")
+		log.Error().Err(err).Msg("An error occurred committing the transaction")
 	}
 
 	// Count the amount of rows after the transaction succeeded
 	rowsAfter, err := db.Query("SELECT COUNT(*) FROM test")
 	if err != nil {
-		log.Error().Err(err).Msg("An error occurred quering after transaction")
+		log.Error().Err(err).Msg("An error occurred querying after transaction")
 	}
 	defer rowsAfter.Close()
 
