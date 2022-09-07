@@ -6,7 +6,7 @@ stages:
   - test
 
 code_quality:
-  services:            # Shut off Docker-in-Docker
+  services: []           # Shut off Docker-in-Docker
   tags:
     - codequality-no-dind
   variables:
@@ -25,17 +25,18 @@ coverage:
   image:
     name: golang:1.17
   stage: test
-  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+\%)/'
+  coverage: '/coverage: \d+.\d+% of statements/'
   before_script:
-    - go install github.com/jstemmer/go-junit-report@v0.9.1
-    - go install github.com/t-yuki/gocover-cobertura@latest
+    - go get gotest.tools/gotestsum
+    - go get github.com/boumenot/gocover-cobertura
     - "go get -d"
   script:
-    - go test -v -coverprofile=coverage.out 2>&1 | go-junit-report -set-exit-code > report.xml
-    - go tool cover -func coverage.out
-  after_script:
-    - cat coverage.out | gocover-cobertura > coverage.xml
+    - go test -v -coverprofile=coverage.out -covermode count
+    - go run github.com/boumenot/gocover-cobertura < coverage.out > coverage.xml
+    - gotestsum --junitfile report.xml --format testname
   artifacts:
     reports:
       junit: report.xml
-      cobertura: coverage.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
