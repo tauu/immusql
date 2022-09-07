@@ -47,7 +47,11 @@ func (conn *immudbConn) Begin() (driver.Tx, error) {
 
 // Close closes the database connection.
 func (conn *immudbConn) Close() error {
-	return conn.client.Disconnect()
+	// Closing the session, will also disconnect from the server,
+	// but disconnecting tht client will leave the session active an results in
+	// a lot of error messages being dumped onto the console.
+	return conn.client.CloseSession(context.Background())
+	// return conn.client.Disconnect()
 }
 
 // -- ConnBeginTx interface --
