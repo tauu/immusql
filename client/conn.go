@@ -16,11 +16,11 @@ type immudbConn struct {
 }
 
 // Connect establishes a new connection to an immudb instance.
-func Open(ctx context.Context, options *client.Options, dbName string) (driver.Conn, error) {
+func Open(ctx context.Context, options *client.Options) (driver.Conn, error) {
 	// Connect to immudb.
 	c := client.NewClient()
 	c = c.WithOptions(options)
-	err := c.OpenSession(ctx, []byte(options.Username), []byte(options.Password), dbName)
+	err := c.OpenSession(ctx, []byte(options.Username), []byte(options.Password), options.Database)
 	if err != nil {
 		return nil, err
 	}

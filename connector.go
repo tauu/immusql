@@ -42,7 +42,7 @@ func (c *connector) openClient(ctx context.Context) (driver.Conn, error) {
 		options = options.WithUsername(c.config.User).
 			WithPassword(c.config.Pass)
 	}
-	return driverClient.Open(ctx, options, c.config.Name)
+	return driverClient.Open(ctx, options)
 }
 
 // openEmbedded creates an embedded immudb engine.
