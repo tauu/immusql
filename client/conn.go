@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
+	"github.com/codenotary/immudb/pkg/api/schema"
 	"github.com/codenotary/immudb/pkg/client"
 	"github.com/tauu/immusql/common"
 )
@@ -136,8 +137,25 @@ func (conn *immudbConn) ResetSession(ctx context.Context) error {
 	if !conn.client.IsConnected() {
 		return driver.ErrBadConn
 	}
-	// Currently there is nothing to reset,
-	// the connection may immediately be reused.
+	// Switch to the original database, if the current database,
+	// is different from the database which was used at the start of the session.
+	opts := conn.client.GetOptions()
+	if opts.CurrentDatabase != opts.Database {
+		dbs, err := conn.client.DatabaseList(ctx)
+		if err != nil {
+			return driver.ErrBadConn
+		}
+		var origDB *schema.Database
+		for _, db := range dbs.GetDatabases() {
+			if db.GetDatabaseName() == opts.Database {
+				origDB = db
+			}
+		}
+		if origDB == nil {
+			return driver.ErrBadConn
+		}
+		conn.client.UseDatabase(ctx, origDB)
+	}
 	return nil
 }
 
