@@ -12,23 +12,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func openConnection() (*sql.DB, error) {
-
-	// Creates a database object
-	// http://foo/asdfadf/test
-	// "file:///test.html"
-	path, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-
+func openConnection(t *testing.T) (*sql.DB, error) {
 	// URI to storage location for the database.
 	// Example format: immudbe:///folderA/folderB/databaseName
+	//
+	// The temp directory from the testing package is automatically cleared
+	// after the test by the testing package itself. So no further cleanup is
+	// required.
 	url := url.URL{
 		Scheme: "immudbe",
-		Path:   path + "/test/testdb",
+		Path:   t.TempDir(),
 	}
 
+	// Open a connection.
 	db, err := sql.Open("immudb", url.String())
 	if err != nil {
 		log.Error().Err(err).Msg("An error occurred while opening connection")
@@ -57,13 +53,10 @@ func cleanUpEmbedded() {
 func TestCreateTable(t *testing.T) {
 
 	// Open a connection
-	db, err := openConnection()
-	if !assert.NoError(t, err, "An error occurred openning connection") {
+	db, err := openConnection(t)
+	if !assert.NoError(t, err, "An error occurred opening connection") {
 		t.FailNow()
 	}
-
-	// Deletes the test directory
-	defer cleanUpEmbedded()
 
 	// Establish an actual connection to the db
 	conn, err := db.Conn(context.Background())
@@ -114,13 +107,10 @@ func TestCreateTable(t *testing.T) {
 func TestInsertValues(t *testing.T) {
 
 	// Open a connection
-	db, err := openConnection()
+	db, err := openConnection(t)
 	if !assert.NoError(t, err, "An error occurred openning connection") {
 		t.FailNow()
 	}
-
-	// Deletes the test directory
-	defer cleanUpEmbedded()
 
 	// Create a new table in the database
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS test(id INTEGER AUTO_INCREMENT, name VARCHAR, surname BLOB, age INTEGER, single BOOLEAN, date TIMESTAMP, PRIMARY KEY id)")

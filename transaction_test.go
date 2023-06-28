@@ -10,13 +10,10 @@ import (
 func TestTransactionSuccess(t *testing.T) {
 
 	// Open a connection
-	db, err := openConnection()
+	db, err := openConnection(t)
 	if !assert.NoError(t, err, "An error occurred openning connection") {
 		t.FailNow()
 	}
-
-	// Deletes the test directory
-	defer cleanUpEmbedded()
 
 	// Create a new table in the database
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS test(id INTEGER AUTO_INCREMENT, name VARCHAR, age INTEGER, isSingle BOOLEAN, PRIMARY KEY id)")
@@ -127,13 +124,10 @@ func TestTransactionSuccess(t *testing.T) {
 func TestTransactionFail(t *testing.T) {
 
 	// Open a connection
-	db, err := openConnection()
+	db, err := openConnection(t)
 	if !assert.NoError(t, err, "An error occurred openning connection") {
 		t.FailNow()
 	}
-
-	// Deletes the test directory
-	defer cleanUpEmbedded()
 
 	// Create a new table in the database
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS test(id INTEGER AUTO_INCREMENT, name VARCHAR, age INTEGER, isSingle BOOLEAN, PRIMARY KEY id)")
@@ -203,13 +197,10 @@ func TestTransactionFail(t *testing.T) {
 func TestTransactionSimple(t *testing.T) {
 
 	// Open a connection
-	db, err := openConnection()
+	db, err := openConnection(t)
 	if !assert.NoError(t, err, "An error occurred openning connection") {
 		t.FailNow()
 	}
-
-	// Deletes the test directory
-	defer cleanUpEmbedded()
 
 	// Create a new table in the database
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS test(id INTEGER AUTO_INCREMENT, name VARCHAR, age INTEGER, isSingle BOOLEAN, PRIMARY KEY id)")
