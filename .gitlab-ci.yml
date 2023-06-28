@@ -31,7 +31,7 @@ coverage:
     - go get github.com/boumenot/gocover-cobertura
     - "go get -d"
   script:
-    - go test -v -coverprofile=coverage.out -covermode count
+    - go test -v -coverprofile=coverage.out -covermode count -coverpkg=./...
     - go run github.com/boumenot/gocover-cobertura < coverage.out > coverage.xml
     - gotestsum --junitfile report.xml --format testname
   artifacts:
