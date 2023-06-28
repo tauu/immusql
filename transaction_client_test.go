@@ -20,11 +20,11 @@ func openConn() (*sql.DB, error) {
 func TestContainerTransaction(t *testing.T) {
 
 	// Open a connection
-	db, err := openConn()
+	db, err := openClientConnection(t)
 	if !assert.NoError(t, err, "An error occurred opening connection") {
 		t.Skip()
 	}
-	//defer db.Close()
+	defer db.Close()
 
 	// Create a new table in the database
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS test(id INTEGER AUTO_INCREMENT, name VARCHAR, age INTEGER, isSingle BOOLEAN, PRIMARY KEY id)")

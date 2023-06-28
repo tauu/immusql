@@ -9,10 +9,11 @@ import (
 
 func TestConnectionResetClient(t *testing.T) {
 	// Open the database.
-	db, err := openConn()
+	db, err := openClientConnection(t)
 	if !assert.NoError(t, err, "An error occurred opening connection") {
 		t.Skip()
 	}
+	defer db.Close()
 	// Limit the maximum number of open connections.
 	db.SetMaxOpenConns(4)
 	// Create more concurrent request than the maximum number of open

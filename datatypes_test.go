@@ -3,11 +3,14 @@ package immusql
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
+	"net"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
+	"github.com/codenotary/immudb/pkg/server"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 )
@@ -40,14 +43,75 @@ func openConnection(t *testing.T) (*sql.DB, error) {
 	return db, nil
 }
 
-func cleanUpEmbedded() {
+func openClientConnection(t *testing.T) (*sql.DB, error) {
+	// Create a test server with default options and a random port.
+	// For the data storage a temp directory provided by the testing package
+	// is used. This directory is automatically cleaned after the test.
+	options := server.DefaultOptions().
+		WithMetricsServer(false).
+		WithWebServer(false).
+		WithPgsqlServer(false).
+		WithPort(0).
+		WithDir(t.TempDir())
 
-	// Deletes the test directory
-	removeDirError := os.RemoveAll("test")
-	if removeDirError != nil {
-		log.Error().Err(removeDirError).Msg("an error occurred while deleting test directory")
+	srv := server.DefaultServer().WithOptions(options).(*server.ImmuServer)
+	srv.Initialize()
+
+	// Run the test server.
+	go func() {
+		srv.Start()
+	}()
+
+	// Stop the server during test cleanup.
+	t.Cleanup(func() { srv.Stop() })
+
+	// Wait up to 500ms for the server to be active.
+	active := false
+	for i := 0; i < 5; i++ {
+		res, err := srv.Health(context.Background(), nil)
+		// If the health request failed, wait for 100ms.
+		if err != nil {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		// Determine the health status and abort if the server is ready.
+		active = res.GetStatus()
+		if active {
+			break
+		}
+	}
+	// Abort if the server is still not ready.
+	if !active {
+		return nil, errors.New("immudb server did not start")
 	}
 
+	// Extract the port on which the server is running.
+	port := srv.Listener.Addr().(*net.TCPAddr).Port
+
+	// Build URI to test server for the database.
+	// Example format: immudb://immudb:immudb@localhost:3322/defaultdb
+	host := fmt.Sprintf("localhost:%d", port)
+	url := url.URL{
+		Scheme: "immudb",
+		User:   url.UserPassword("immudb", "immudb"),
+		Host:   host,
+		Path:   "defaultdb",
+	}
+
+	// Open a connection.
+	db, err := sql.Open("immudb", url.String())
+	if err != nil {
+		log.Error().Err(err).Msg("An error occurred while opening connection")
+		return nil, err
+	}
+
+	err = db.Ping()
+	if err != nil {
+		log.Error().Err(err).Msg("Ping failed")
+		return nil, err
+	}
+
+	return db, nil
 }
 
 func TestCreateTable(t *testing.T) {
