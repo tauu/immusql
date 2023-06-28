@@ -24,39 +24,13 @@ func Open(ctx context.Context, path string, dbName string) (driver.Conn, error) 
 	if err != nil {
 		return nil, err
 	}
-	// dataStore, err := store.Open(config.SqlPath, store.DefaultOptions())
-	//if err != nil {
-	//	return nil, err
-	//}
 	// Create a sql engine.
-	sqlOpts := sql.DefaultOptions()
+	sqlOpts := sql.DefaultOptions().WithPrefix([]byte(dbName))
 	engine, err := sql.NewEngine(catalogStore, sqlOpts)
 	if err != nil {
 		return nil, err
 	}
-	// Wait until the engine is ready.
-	//err = engine.EnsureCatalogReady(make(<-chan struct{}))
-	//if err != nil {
-	//	return nil, err
-	//}
-	catalog, err := engine.Catalog(nil)
-	if err != nil {
-		return nil, err
-	}
-	//ok, err := engine.ExistDatabase(dbName)
-	ok := catalog.ExistDatabase(dbName)
-	// Create the database if it does not exist.
-	if !ok {
-		_, _, err := engine.Exec("CREATE DATABASE "+dbName, map[string]interface{}{}, nil)
-		if err != nil {
-			return nil, err
-		}
-	}
-	err = engine.SetCurrentDatabase(dbName)
-	if err != nil {
-		return nil, err
-	}
-	return &immudbEmbedded{engine: engine}, nil
+	return &immudbEmbedded{engine: engine, store: catalogStore}, nil
 }
 
 // -- Conn interface --
@@ -160,21 +134,20 @@ func (conn *immudbEmbedded) ResetSession(ctx context.Context) error {
 
 // ExistTable checks if a table with the given name exist in the connected database.
 func (conn *immudbEmbedded) ExistTable(name string) (bool, error) {
-	catalog, err := conn.engine.Catalog(nil)
+	// Retrieve the catalog.
+	catalog, err := conn.engine.Catalog(context.Background(), nil)
 	if err != nil {
 		return false, err
 	}
-	db, err := catalog.GetDatabaseByName(conn.engine.CurrentDatabase())
-	if err != nil {
-		return false, err
-	}
-	return db.ExistTable(name), nil
+	// Check if the table exists.
+	return catalog.ExistTable(name), nil
 }
 
 // -- util --
 // execStmt executes a single statement and returns the new Tx.
 func (conn *immudbEmbedded) execStmt(stmt sql.SQLStmt) (*sql.SQLTx, error) {
 	stmts := []sql.SQLStmt{stmt}
-	sqlTx, _, err := conn.engine.ExecPreparedStmts(stmts, nil, conn.sqlTx)
+	sqlTx, _, err := conn.engine.ExecPreparedStmts(context.Background(),
+		conn.sqlTx, stmts, nil)
 	return sqlTx, err
 }

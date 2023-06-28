@@ -1,6 +1,7 @@
 package embedded
 
 import (
+	"context"
 	"database/sql/driver"
 	"errors"
 	"io"
@@ -120,7 +121,7 @@ type rows struct {
 // Columns returns the name of the columns of the rows.
 func (r *rows) Columns() []string {
 	// Retrieve the columns in the query result.
-	immudbCols, err := r.data.Columns()
+	immudbCols, err := r.data.Columns(context.Background())
 	// If an error occurred, it cannot be reported using the sql/driver interface.
 	// Instead we return an empty array.
 	if err != nil {
@@ -144,7 +145,7 @@ func (r *rows) Close() error {
 // Next returns the next row of the query result.
 func (r *rows) Next(dest []driver.Value) error {
 	// Get the rows.
-	row, err := r.data.Read()
+	row, err := r.data.Read(context.Background())
 	if errors.Is(err, sql.ErrNoMoreRows) {
 		return io.EOF
 	}
@@ -152,27 +153,33 @@ func (r *rows) Next(dest []driver.Value) error {
 		return err
 	}
 	// Retrieve the columns in the query result.
-	immudbCols, err := r.data.Columns()
+	immudbCols, err := r.data.Columns(context.Background())
 	if err != nil {
 		return err
 	}
 	// Write value to destination slice.
 	values := row.ValuesBySelector
 	for i, col := range immudbCols {
+		// Abort if not enough destination values exist.
+		if i >= len(dest) {
+			break
+		}
 		value := values[col.Selector()]
 		switch value.Type() {
 		case sql.IntegerType:
-			dest[i] = value.Value()
+			dest[i] = value.RawValue()
 		case sql.VarcharType:
-			dest[i] = value.Value()
+			dest[i] = value.RawValue()
 		case sql.BooleanType:
-			dest[i] = value.Value()
+			dest[i] = value.RawValue()
 		case sql.BLOBType:
-			dest[i] = value.Value()
+			dest[i] = value.RawValue()
 		case sql.TimestampType:
-			dest[i] = value.Value()
+			dest[i] = value.RawValue()
+		case sql.Float64Type:
+			dest[i] = value.RawValue()
 		case sql.AnyType:
-			dest[i] = value.Value()
+			dest[i] = value.RawValue()
 		}
 	}
 	return nil
@@ -183,7 +190,7 @@ func (r *rows) Next(dest []driver.Value) error {
 // ColumnTypeDatabaseTypeName returns the type of the index-th column in the result.
 func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
 	// Retrieve the columns in the query result.
-	immudbCols, err := r.data.Columns()
+	immudbCols, err := r.data.Columns(context.Background())
 	if err != nil {
 		return ""
 	}
@@ -218,7 +225,7 @@ func (r *rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok b
 // ColumnTypeScanType returns the type of a go value into which the value of the index-th column can be scanned.
 func (r *rows) ColumnTypeScanType(index int) reflect.Type {
 	// Retrieve the columns in the query result.
-	immudbCols, err := r.data.Columns()
+	immudbCols, err := r.data.Columns(context.Background())
 	if err != nil {
 		return nil
 	}

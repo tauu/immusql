@@ -63,7 +63,7 @@ func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (drive
 
 	// Convert arguments to the expected format and execute the query.
 	params := common.NamedValueToMapString(args)
-	tx, committedTx, err := s.conn.engine.ExecPreparedStmts(s.query, params, s.conn.sqlTx)
+	tx, committedTx, err := s.conn.engine.ExecPreparedStmts(context.Background(), s.conn.sqlTx, s.query, params)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (s *stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driv
 	stmt := s.query[0]
 	switch q := stmt.(type) {
 	case *sql.SelectStmt:
-		res, err := s.conn.engine.QueryPreparedStmt(q, params, s.conn.sqlTx)
+		res, err := s.conn.engine.QueryPreparedStmt(context.Background(), s.conn.sqlTx, q, params)
 		if err != nil {
 			return nil, err
 		}
