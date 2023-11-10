@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/codenotary/immudb/pkg/server"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func openConnection(t *testing.T) (*sql.DB, error) {
@@ -114,123 +116,138 @@ func openClientConnection(t *testing.T) (*sql.DB, error) {
 	return db, nil
 }
 
+func runTest(t *testing.T, testFunc func(*testing.T, *sql.DB)) {
+	// Run the test using an embedded engine.
+	t.Run("embedded", func(t *testing.T) {
+		// Open a connection
+		db, err := openConnection(t)
+		if !assert.NoError(t, err, "An error occurred opening connection") {
+			t.FailNow()
+		}
+		defer db.Close()
+		testFunc(t, db)
+	})
+	// Run the test using a client connection.
+	t.Run("client", func(t *testing.T) {
+		db, err := openClientConnection(t)
+		if !assert.NoError(t, err, "An error occurred opening connection") {
+			t.FailNow()
+		}
+		defer db.Close()
+		testFunc(t, db)
+	})
+}
+
 func TestCreateTable(t *testing.T) {
-
-	// Open a connection
-	db, err := openConnection(t)
-	if !assert.NoError(t, err, "An error occurred opening connection") {
-		t.FailNow()
-	}
-
-	// Establish an actual connection to the db
-	conn, err := db.Conn(context.Background())
-	if !assert.NoError(t, err, "retrieving an actual database connection failed") {
-		t.FailNow()
-	}
-
-	// Check if table exists before creating it
-	err = conn.Raw(func(driverConn interface{}) error {
-		if v, ok := driverConn.(ImmuDBconn); ok {
-			exists, err := v.ExistTable("test")
-			assert.NoError(t, err, "calling ExistTable of the driver failed")
-			assert.False(t, exists, "table does exist before creating it")
-		} else {
-			assert.True(t, ok, "driver object of database connection does not satisfiy ImmuDBconn interface")
+	runTest(t, func(t *testing.T, db *sql.DB) {
+		// Establish an actual connection to the db
+		conn, err := db.Conn(context.Background())
+		if !assert.NoError(t, err, "retrieving an actual database connection failed") {
+			t.FailNow()
 		}
-		return nil
-	})
-	assert.NoError(t, err, "Checking if table exists failed")
 
-	// Create a new table in the database
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS test(id INTEGER AUTO_INCREMENT, name VARCHAR, surname BLOB, age INTEGER, single BOOLEAN, date TIMESTAMP, PRIMARY KEY id)")
-	if !assert.NoError(t, err, "An error occurred creating a new table") {
-		t.FailNow()
-	}
+		// Check if table exists before creating it
+		err = conn.Raw(func(driverConn interface{}) error {
+			if v, ok := driverConn.(ImmuDBconn); ok {
+				exists, err := v.ExistTable("test")
+				assert.NoError(t, err, "calling ExistTable of the driver failed")
+				assert.False(t, exists, "table does exist before creating it")
+			} else {
+				assert.True(t, ok, "driver object of database connection does not satisfiy ImmuDBconn interface")
+			}
+			return nil
+		})
+		assert.NoError(t, err, "Checking if table exists failed")
 
-	// Establish an actual connection to the db
-	conn, err = db.Conn(context.Background())
-	if !assert.NoError(t, err, "retrieving an actual database connection failed") {
-		t.FailNow()
-	}
-
-	// Check if table exists after creating it
-	err = conn.Raw(func(driverConn interface{}) error {
-		if v, ok := driverConn.(ImmuDBconn); ok {
-			exists, err := v.ExistTable("test")
-			assert.NoError(t, err, "calling ExistTable of the driver failed")
-			assert.True(t, exists, "table test does not exist after creating it")
-		} else {
-			assert.True(t, ok, "driver object of database connection does not satisfiy ImmuDBconn interface")
+		// Create a new table in the database
+		_, err = db.Exec("CREATE TABLE IF NOT EXISTS test(id INTEGER AUTO_INCREMENT, name VARCHAR, surname BLOB, age INTEGER, single BOOLEAN, date TIMESTAMP, PRIMARY KEY id)")
+		if !assert.NoError(t, err, "An error occurred creating a new table") {
+			t.FailNow()
 		}
-		return nil
-	})
-	assert.NoError(t, err, "Table creation failed")
 
+		// Establish an actual connection to the db
+		conn, err = db.Conn(context.Background())
+		if !assert.NoError(t, err, "retrieving an actual database connection failed") {
+			t.FailNow()
+		}
+
+		// Check if table exists after creating it
+		err = conn.Raw(func(driverConn interface{}) error {
+			if v, ok := driverConn.(ImmuDBconn); ok {
+				exists, err := v.ExistTable("test")
+				assert.NoError(t, err, "calling ExistTable of the driver failed")
+				assert.True(t, exists, "table test does not exist after creating it")
+			} else {
+				assert.True(t, ok, "driver object of database connection does not satisfiy ImmuDBconn interface")
+			}
+			return nil
+		})
+		assert.NoError(t, err, "Table creation failed")
+
+	})
 }
 
 func TestInsertValues(t *testing.T) {
-
-	// Open a connection
-	db, err := openConnection(t)
-	if !assert.NoError(t, err, "An error occurred openning connection") {
-		t.FailNow()
-	}
-
-	// Create a new table in the database
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS test(id INTEGER AUTO_INCREMENT, name VARCHAR, surname BLOB, age INTEGER, single BOOLEAN, date TIMESTAMP, PRIMARY KEY id)")
-	if !assert.NoError(t, err, "An error occurred creating a new table") {
-		t.FailNow()
-	}
-
-	dateBeforeMicro := time.Now().UnixMicro()
-
-	// Define variables to Insert
-	nameBefore := "Jose"
-	surnameBefore := []byte("Roca")
-	ageBefore := 33
-	singleBefore := true
-	dateBefore := time.UnixMicro(dateBeforeMicro).UTC()
-
-	// Insert data in the database
-	res, err := db.Exec("INSERT INTO test(name, surname, age, single, date) VALUES(?,?,?,?,?)", nameBefore, surnameBefore, ageBefore, singleBefore, dateBefore)
-	if err != nil {
-		log.Error().Err(err).Msg("An error occurred inserting data to the database")
-	}
-
-	// Check if the data was inserted in the database
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		log.Error().Err(err).Msg("An error occurred checking rows affected")
-	}
-	assert.Equal(t, rowsAffected, int64(1), "An error occurred reading the database")
-
-	var (
-		nameAfter    string
-		surnameAfter []byte
-		ageAfter     int
-		singleAfter  bool
-		dateAfter    time.Time
-	)
-
-	// Query data previously inserted
-	rows, err := db.Query("SELECT name, surname, age, single, date FROM test WHERE name = ?", nameBefore)
-	if err != nil {
-		log.Error().Err(err).Msg("An error happened while quering data")
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		err := rows.Scan(&nameAfter, &surnameAfter, &ageAfter, &singleAfter, &dateAfter)
-		if err != nil {
-			log.Error().Err(err).Msg("An error happened scanning rows")
+	runTest(t, func(t *testing.T, db *sql.DB) {
+		// Create a new table in the database
+		_, err := db.Exec("CREATE TABLE IF NOT EXISTS test(id INTEGER AUTO_INCREMENT, name VARCHAR, surname BLOB, age INTEGER, single BOOLEAN, date TIMESTAMP, id2 UUID, PRIMARY KEY id)")
+		if !assert.NoError(t, err, "An error occurred creating a new table") {
+			t.FailNow()
 		}
-	}
 
-	// Tests cases
-	assert.Equal(t, nameBefore, nameAfter, "An error ocurred parsing the database")
-	assert.Equal(t, surnameBefore, surnameAfter, "An error ocurred parsing the database")
-	assert.Equal(t, ageBefore, ageAfter, "An error ocurred parsing the database")
-	assert.Equal(t, singleBefore, singleAfter, "An error ocurred parsing the database")
-	assert.Equal(t, dateBefore, dateAfter, "An error ocurred parsing the database")
+		// Define variables to Insert
+		nameBefore := "Jose"
+		surnameBefore := []byte("Roca")
+		ageBefore := 33
+		singleBefore := true
+		dateBefore := time.Now()
+		id2Before, err := uuid.NewRandom()
+		require.NoError(t, err, "creating a random uuid should not fail")
 
+		// Insert data in the database
+		res, err := db.Exec("INSERT INTO test(name, surname, age, single, date, id2) VALUES(?,?,?,?,?,?::UUID)", nameBefore, surnameBefore, ageBefore, singleBefore, dateBefore, id2Before)
+		require.NoError(t, err, "An error occurred inserting data to the database")
+
+		// Check if the data was inserted in the database
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			log.Error().Err(err).Msg("An error occurred checking rows affected")
+		}
+		assert.Equal(t, rowsAffected, int64(1), "An error occurred reading the database")
+
+		var (
+			nameAfter    string
+			surnameAfter []byte
+			ageAfter     int
+			singleAfter  bool
+			dateAfter    time.Time
+			id2After     uuid.UUID
+		)
+
+		// Query data previously inserted
+		rows, err := db.Query("SELECT name, surname, age, single, date, id2 FROM test WHERE name = ?", nameBefore)
+		if err != nil {
+			log.Error().Err(err).Msg("An error happened while querying data")
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			err := rows.Scan(&nameAfter, &surnameAfter, &ageAfter, &singleAfter, &dateAfter, &id2After)
+			if err != nil {
+				log.Error().Err(err).Msg("An error happened scanning rows")
+			}
+		}
+
+		// Tests cases
+		assert.Equal(t, nameBefore, nameAfter, "An error ocurred parsing the database")
+		assert.Equal(t, surnameBefore, surnameAfter, "An error ocurred parsing the database")
+		assert.Equal(t, ageBefore, ageAfter, "An error ocurred parsing the database")
+		assert.Equal(t, singleBefore, singleAfter, "An error ocurred parsing the database")
+		// Comparing times directly does not work, as timestamps also contains a
+		// monotonic clock reading, which is never stored in the database.
+		assert.True(t, dateBefore.Equal(dateAfter), "An error ocurred parsing the database")
+		assert.Equal(t, time.Local, dateAfter.Location(), "The database should by default always return local times")
+		assert.Equal(t, id2Before, id2After, "An error ocurred parsing the database")
+
+	})
 }
