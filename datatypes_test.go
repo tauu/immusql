@@ -190,7 +190,7 @@ func TestCreateTable(t *testing.T) {
 func TestInsertValues(t *testing.T) {
 	runTest(t, func(t *testing.T, db *sql.DB) {
 		// Create a new table in the database
-		_, err := db.Exec("CREATE TABLE IF NOT EXISTS test(id INTEGER AUTO_INCREMENT, name VARCHAR, surname BLOB, age INTEGER, single BOOLEAN, date TIMESTAMP, id2 UUID, PRIMARY KEY id)")
+		_, err := db.Exec("CREATE TABLE IF NOT EXISTS test(id INTEGER AUTO_INCREMENT, name VARCHAR, surname BLOB, age INTEGER, single BOOLEAN, date TIMESTAMP, height FLOAT, id2 UUID, PRIMARY KEY id)")
 		if !assert.NoError(t, err, "An error occurred creating a new table") {
 			t.FailNow()
 		}
@@ -201,11 +201,12 @@ func TestInsertValues(t *testing.T) {
 		ageBefore := 33
 		singleBefore := true
 		dateBefore := time.Now()
+		heightBefore := 1.80
 		id2Before, err := uuid.NewRandom()
 		require.NoError(t, err, "creating a random uuid should not fail")
 
 		// Insert data in the database
-		res, err := db.Exec("INSERT INTO test(name, surname, age, single, date, id2) VALUES(?,?,?,?,?,?::UUID)", nameBefore, surnameBefore, ageBefore, singleBefore, dateBefore, id2Before)
+		res, err := db.Exec("INSERT INTO test(name, surname, age, single, date, height, id2) VALUES(?,?,?,?,?,?,?::UUID)", nameBefore, surnameBefore, ageBefore, singleBefore, dateBefore, heightBefore, id2Before)
 		require.NoError(t, err, "An error occurred inserting data to the database")
 
 		// Check if the data was inserted in the database
@@ -221,18 +222,19 @@ func TestInsertValues(t *testing.T) {
 			ageAfter     int
 			singleAfter  bool
 			dateAfter    time.Time
+			heightAfter  float64
 			id2After     uuid.UUID
 		)
 
 		// Query data previously inserted
-		rows, err := db.Query("SELECT name, surname, age, single, date, id2 FROM test WHERE name = ?", nameBefore)
+		rows, err := db.Query("SELECT name, surname, age, single, date, height, id2 FROM test WHERE name = ?", nameBefore)
 		if err != nil {
 			log.Error().Err(err).Msg("An error happened while querying data")
 		}
 		defer rows.Close()
 
 		for rows.Next() {
-			err := rows.Scan(&nameAfter, &surnameAfter, &ageAfter, &singleAfter, &dateAfter, &id2After)
+			err := rows.Scan(&nameAfter, &surnameAfter, &ageAfter, &singleAfter, &dateAfter, &heightAfter, &id2After)
 			if err != nil {
 				log.Error().Err(err).Msg("An error happened scanning rows")
 			}
@@ -247,6 +249,7 @@ func TestInsertValues(t *testing.T) {
 		// monotonic clock reading, which is never stored in the database.
 		assert.True(t, dateBefore.Equal(dateAfter), "An error ocurred parsing the database")
 		assert.Equal(t, time.Local, dateAfter.Location(), "The database should by default always return local times")
+		assert.Equal(t, heightBefore, heightAfter, "An error ocurred parsing the database")
 		assert.Equal(t, id2Before, id2After, "An error ocurred parsing the database")
 
 	})

@@ -136,6 +136,8 @@ func (r *rows) Next(dest []driver.Value) error {
 			dest[i] = v.B
 		case *schema.SQLValue_Bs:
 			dest[i] = v.Bs
+		case *schema.SQLValue_F:
+			dest[i] = v.F
 		case *schema.SQLValue_Ts:
 			// Convert micro seconds since epoch into a time value.
 			dest[i] = time.UnixMicro(v.Ts)
