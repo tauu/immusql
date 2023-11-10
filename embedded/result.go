@@ -6,8 +6,10 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"time"
 
 	"github.com/codenotary/immudb/embedded/sql"
+	"github.com/google/uuid"
 	"github.com/tauu/immusql/common"
 )
 
@@ -175,9 +177,21 @@ func (r *rows) Next(dest []driver.Value) error {
 		case sql.BLOBType:
 			dest[i] = value.RawValue()
 		case sql.TimestampType:
-			dest[i] = value.RawValue()
+			// By default the package returns all times in local time, just as
+			// golang also uses local time by default for timestamps.
+			sqlTimeStamp, ok := value.RawValue().(time.Time)
+			if ok {
+				dest[i] = sqlTimeStamp.Local()
+			}
 		case sql.Float64Type:
 			dest[i] = value.RawValue()
+		case sql.UUIDType:
+			// Convert the uuid to a string, as the sql package does not support
+			// uuid values directly.
+			sqlUUID, ok := value.RawValue().(uuid.UUID)
+			if ok {
+				dest[i] = sqlUUID.String()
+			}
 		case sql.AnyType:
 			dest[i] = value.RawValue()
 		}

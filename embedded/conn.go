@@ -20,7 +20,7 @@ type immudbEmbedded struct {
 // Connect establishes a new connection to an immudb instance.
 func Open(ctx context.Context, path string, dbName string) (driver.Conn, error) {
 	// Open a catalog and data store for the sql engine.
-	catalogStore, err := store.Open(path, store.DefaultOptions())
+	catalogStore, err := store.Open(path, store.DefaultOptions().WithMultiIndexing(true))
 	if err != nil {
 		return nil, err
 	}
