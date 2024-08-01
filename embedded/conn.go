@@ -37,7 +37,7 @@ func Open(ctx context.Context, path string, dbName string) (driver.Conn, error) 
 
 // Prepare prepares a sql statement.
 func (conn *immudbEmbedded) Prepare(query string) (driver.Stmt, error) {
-	stmts, err := sql.Parse(strings.NewReader(query))
+	stmts, err := sql.ParseSQL(strings.NewReader(query))
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (conn *immudbEmbedded) PrepareContext(ctx context.Context, query string) (d
 // ExecContext executes a statement and returns the result.
 func (conn *immudbEmbedded) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	// Create a statement.
-	stmts, err := sql.Parse(strings.NewReader(query))
+	stmts, err := sql.ParseSQL(strings.NewReader(query))
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (conn *immudbEmbedded) ExecContext(ctx context.Context, query string, args 
 // This method if required to satisfy the QueryerContext interface of sql/driver.
 func (conn *immudbEmbedded) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	// Create a statement.
-	stmts, err := sql.Parse(strings.NewReader(query))
+	stmts, err := sql.ParseSQL(strings.NewReader(query))
 	if err != nil {
 		return nil, err
 	}

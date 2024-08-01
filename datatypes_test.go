@@ -206,7 +206,7 @@ func TestInsertValues(t *testing.T) {
 		require.NoError(t, err, "creating a random uuid should not fail")
 
 		// Insert data in the database
-		res, err := db.Exec("INSERT INTO test(name, surname, age, single, date, height, id2) VALUES(?,?,?,?,?,?,?::UUID)", nameBefore, surnameBefore, ageBefore, singleBefore, dateBefore, heightBefore, id2Before)
+		res, err := db.Exec("INSERT INTO test(name, surname, age, single, date, height, id2) VALUES(?,?,?,?,?,?,?)", nameBefore, surnameBefore, ageBefore, singleBefore, dateBefore, heightBefore, id2Before)
 		require.NoError(t, err, "An error occurred inserting data to the database")
 
 		// Check if the data was inserted in the database
