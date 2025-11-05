@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,58 +18,54 @@ func TestTransactionSuccess(t *testing.T) {
 
 		// Count the amount of rows before the transaction
 		rowsBefore, err := db.Query("SELECT COUNT(*) FROM test")
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred quering before transaction")
+		if !assert.NoError(t, err, "querying for a transaction should not cause an error") {
+			t.FailNow()
 		}
 		defer rowsBefore.Close()
 
 		var countBefore int
 
 		for rowsBefore.Next() {
-			if err := rowsBefore.Scan(&countBefore); err != nil {
-				log.Error().Err(err).Msg("An error occurred counting rows before transaction")
-			}
+			err := rowsBefore.Scan(&countBefore)
+			assert.NoError(t, err, "counting rows before a transaction should not cause an error")
 		}
 
 		// Start a transaction
 		tx, err := db.Begin()
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred beginning the transaction")
+		if !assert.NoError(t, err, "beginning a transaction should not cause and error") {
+			t.FailNow()
 		}
 
 		// Insert data to the database
 		_, err = tx.Exec("INSERT INTO test(name, age, isSingle) VALUES(?, ?, ?)", "Maria", 40, false)
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred while inserting data to the database (1st record)")
-
+		if !assert.NoError(t, err, "inserting data during a transaction should not cause and error") {
+			t.FailNow()
 		}
 
 		// Insert data to the database
 		_, err = tx.Exec("INSERT INTO test(name, age, isSingle) VALUES(?, ?, ?)", "Marc", 44, true)
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred while inserting data to the database (2nd record)")
-
+		if !assert.NoError(t, err, "inserting data during a transaction should not cause and error") {
+			t.FailNow()
 		}
 
 		// Commit the transaction
 		err = tx.Commit()
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred commiting the transaction")
+		if !assert.NoError(t, err, "committing a transaction should not cause and error") {
+			t.FailNow()
 		}
 
 		// Count the amount of rows after the transaction succeeded
 		rowsAfter, err := db.Query("SELECT COUNT(*) FROM test")
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred quering after transaction")
+		if !assert.NoError(t, err, "querying after a transaction should not cause and error") {
+			t.FailNow()
 		}
 		defer rowsAfter.Close()
 
 		var countAfter int
 
 		for rowsAfter.Next() {
-			if err := rowsAfter.Scan(&countAfter); err != nil {
-				log.Error().Err(err).Msg("An error occurred counting rows after transaction")
-			}
+			err := rowsAfter.Scan(&countAfter)
+			assert.NoError(t, err, "scanning rows after a transaction should not cause an error")
 		}
 
 		// Test cases
@@ -85,8 +80,8 @@ func TestTransactionSuccess(t *testing.T) {
 
 		// Check that the database connection still works after a successful transaction
 		rows, err := db.Query("SELECT * from test")
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred while Quering the database")
+		if !assert.NoError(t, err, "querying database should not cause an error") {
+			t.FailNow()
 		}
 		defer rows.Close()
 
@@ -94,15 +89,15 @@ func TestTransactionSuccess(t *testing.T) {
 		for rows.Next() {
 			var u user
 			err := rows.Scan(&u.id, &u.name, &u.age, &u.isSingle)
-			if err != nil {
-				log.Error().Err(err).Msg("An error happened scanning rows")
-			}
+			assert.NoError(t, err, "scanning errors should not cause an error")
 			users = append(users, u)
 
 		}
 
 		// Verify that the length of users array is 2
-		assert.Equal(t, 2, len(users), "An error occurred Quering users")
+		if !assert.Equal(t, 2, len(users), "An error occurred Quering users") {
+			t.FailNow()
+		}
 
 		// Test cases
 		assert.Equal(t, 1, users[0].id, "An error happened parsing the db")
@@ -127,56 +122,48 @@ func TestTransactionFail(t *testing.T) {
 
 		// Count the amount of rows before the transaction
 		rowsBefore, err := db.Query("SELECT COUNT(*) FROM test")
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred quering before transaction")
+		if !assert.NoError(t, err, "querying before a transaction should not cause an error") {
+			t.FailNow()
 		}
 		defer rowsBefore.Close()
 
 		var countBefore int
 
 		for rowsBefore.Next() {
-			if err := rowsBefore.Scan(&countBefore); err != nil {
-				log.Error().Err(err).Msg("An error occurred counting rows before transaction")
-			}
+			err := rowsBefore.Scan(&countBefore)
+			assert.NoError(t, err, "counting rows before a transaction should not cause an error")
 		}
 
 		// Start a transaction
 		tx, err := db.Begin()
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred beginning the transaction")
+		if !assert.NoError(t, err, "beginning a transaction should not cause an error") {
+			t.FailNow()
 		}
 
 		// Insert data to the database
 		_, err = tx.Exec("INSERT INTO test(name, age, isSingle) VALUES(?, ?, ?)", "Maria", 40, false)
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred while inserting data to the database (1st record)")
-		}
+		assert.NoError(t, err, "inserting data during a transaction should not cause an error")
 
 		// Insert data to the database
 		_, err = tx.Exec("INSERT INTO tests(name, age, isSingle) VALUES(?, ?, ?)", "Marc", 22, true)
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred while inserting data to the database (2nd record)")
-		}
+		assert.NoError(t, err, "inserting data during a transaction should not cause an error")
 
 		// Commit the transaction
 		err = tx.Commit()
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred commiting the transaction")
-		}
+		assert.NoError(t, err, "committing a transaction should not cause an error")
 
 		// Count the amount of rows after the transaction failed
 		rowsAfter, err := db.Query("SELECT COUNT(*) FROM test")
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred quering after transaction")
+		if !assert.NoError(t, err, "querying after a transaction should no cause an error") {
+			t.FailNow()
 		}
 		defer rowsAfter.Close()
 
 		var countAfter int
 
 		for rowsAfter.Next() {
-			if err := rowsAfter.Scan(&countAfter); err != nil {
-				log.Error().Err(err).Msg("An error occurred counting rows after transaction")
-			}
+			err := rowsAfter.Scan(&countAfter)
+			assert.NoError(t, err, "counting rows after a transaction should not cause an error")
 		}
 
 		// Test cases
@@ -194,47 +181,43 @@ func TestTransactionSimple(t *testing.T) {
 
 		// Count the amount of rows before the transaction
 		rowsBefore, err := db.Query("SELECT COUNT(*) FROM test")
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred quering before transaction")
+		if !assert.NoError(t, err, "querying before transaction should not cause an error") {
+			t.FailNow()
 		}
 		defer rowsBefore.Close()
 
 		var countBefore int
 
 		for rowsBefore.Next() {
-			if err := rowsBefore.Scan(&countBefore); err != nil {
-				log.Error().Err(err).Msg("An error occurred counting rows before transaction")
-			}
+			err := rowsBefore.Scan(&countBefore)
+			assert.NoError(t, err, "scanning rows before a transaction should not cause an error")
 		}
 
 		// Start a transaction
 		tx, err := db.Begin()
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred beginning the transaction")
+		if !assert.NoError(t, err, "beginning a transaction should not cause an error") {
+			t.FailNow()
 		}
 
 		// Insert data to the database
 		_, err = tx.Exec("INSERT INTO test(name, age, isSingle) VALUES(?, ?, ?)", "Maria", 40, false)
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred while inserting data to the database")
-		}
+		assert.NoError(t, err, "inserting data to the database should not cause an error")
 
 		// Forced Rollback
 		tx.Rollback()
 
 		// Count the amount of rows after the transaction succeeded
 		rowsAfter, err := db.Query("SELECT COUNT(*) FROM test")
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred quering after transaction")
+		if !assert.NoError(t, err, "querying data after a transaction should not cause an error") {
+			t.FailNow()
 		}
 		defer rowsAfter.Close()
 
 		var countAfter int
 
 		for rowsAfter.Next() {
-			if err := rowsAfter.Scan(&countAfter); err != nil {
-				log.Error().Err(err).Msg("An error occurred counting rows after transaction")
-			}
+			err := rowsAfter.Scan(&countAfter)
+			assert.NoError(t, err, "scanning rows after a transaction should not cause an error")
 		}
 
 		// Test cases

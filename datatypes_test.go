@@ -12,7 +12,7 @@ import (
 
 	"github.com/codenotary/immudb/pkg/server"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,14 +32,12 @@ func openConnection(t *testing.T) (*sql.DB, error) {
 	// Open a connection.
 	db, err := sql.Open("immudb", url.String())
 	if err != nil {
-		log.Error().Err(err).Msg("An error occurred while opening connection")
-		return nil, err
+		return nil, fmt.Errorf("opening DB connection failed: %v", err)
 	}
 
 	err = db.Ping()
 	if err != nil {
-		log.Error().Err(err).Msg("Ping failed")
-		return nil, err
+		return nil, fmt.Errorf("DB ping failed: %v", err)
 	}
 
 	return db, nil
@@ -103,14 +101,12 @@ func openClientConnection(t *testing.T) (*sql.DB, error) {
 	// Open a connection.
 	db, err := sql.Open("immudb", url.String())
 	if err != nil {
-		log.Error().Err(err).Msg("An error occurred while opening connection")
-		return nil, err
+		return nil, fmt.Errorf("opening DB connection failed: %v", err)
 	}
 
 	err = db.Ping()
 	if err != nil {
-		log.Error().Err(err).Msg("Ping failed")
-		return nil, err
+		return nil, fmt.Errorf("DB ping failed: %v", err)
 	}
 
 	return db, nil
@@ -211,8 +207,8 @@ func TestInsertValues(t *testing.T) {
 
 		// Check if the data was inserted in the database
 		rowsAffected, err := res.RowsAffected()
-		if err != nil {
-			log.Error().Err(err).Msg("An error occurred checking rows affected")
+		if !assert.NoError(t, err, "checking affected rows should not fail") {
+			t.FailNow()
 		}
 		assert.Equal(t, rowsAffected, int64(1), "An error occurred reading the database")
 
@@ -228,15 +224,15 @@ func TestInsertValues(t *testing.T) {
 
 		// Query data previously inserted
 		rows, err := db.Query("SELECT name, surname, age, single, date, height, id2 FROM test WHERE name = ?", nameBefore)
-		if err != nil {
-			log.Error().Err(err).Msg("An error happened while querying data")
+		if !assert.NoError(t, err, "querying data from DB should not cause an error") {
+			t.FailNow()
 		}
 		defer rows.Close()
 
 		for rows.Next() {
 			err := rows.Scan(&nameAfter, &surnameAfter, &ageAfter, &singleAfter, &dateAfter, &heightAfter, &id2After)
-			if err != nil {
-				log.Error().Err(err).Msg("An error happened scanning rows")
+			if !assert.NoError(t, err, "scanning rows should not cause an error") {
+				t.FailNow()
 			}
 		}
 

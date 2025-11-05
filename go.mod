@@ -7,7 +7,6 @@ toolchain go1.22.5
 require (
 	github.com/codenotary/immudb v1.10.0
 	github.com/google/uuid v1.6.0
-	github.com/rs/zerolog v1.15.0
 	github.com/stretchr/testify v1.9.0
 )
 
