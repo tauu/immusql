@@ -177,12 +177,18 @@ func (r *rows) Next(dest []driver.Value) error {
 		case sql.BLOBType:
 			dest[i] = value.RawValue()
 		case sql.TimestampType:
+			dest[i] = value.RawValue().(time.Time)
+			// In previous versions the time was returned in local time as the
+			// immudb client pkg also returned the time in the local zone.
+			// As it no longer does (v1.10.0), the embedded version also does
+			// no longer returns it in the local zone.
+			//
 			// By default the package returns all times in local time, just as
 			// golang also uses local time by default for timestamps.
-			sqlTimeStamp, ok := value.RawValue().(time.Time)
-			if ok {
-				dest[i] = sqlTimeStamp.Local()
-			}
+			// sqlTimeStamp, ok := value.RawValue().(time.Time)
+			// if ok {
+			// 	dest[i] = sqlTimeStamp.Local()
+			// }
 		case sql.Float64Type:
 			dest[i] = value.RawValue()
 		case sql.UUIDType:

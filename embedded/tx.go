@@ -21,8 +21,13 @@ func (t *tx) Commit() error {
 	if t.conn.sqlTx == nil {
 		return common.ErrTxAlreadyFinished
 	}
+	err := t.conn.sqlTx.Commit(context.Background())
+	// Committing the transaction by executing the CommitStmt does not raise an
+	// error/ if there is not pending transaction or if an error occurred during
+	// the transaction. The client package causes an error in this situation,
+	// therefore the above method is used instead.
 	// Commit the transaction.
-	_, err := t.conn.execStmt(&sql.CommitStmt{})
+	//_, err := t.conn.execStmt(&sql.CommitStmt{})
 	return t.finish(err)
 }
 
@@ -44,7 +49,7 @@ func (t *tx) Rollback() error {
 // finish completes the transaction, and informs the connection
 // to no longer execute queries in the context of the transaction.
 func (t *tx) finish(err error) error {
-	// If an error occurred while commiting or rolling back
+	// If an error occurred while committing or rolling back
 	// the transaction, it is cancelled to resume regular operation.
 	if err != nil {
 		err = t.conn.sqlTx.Cancel()

@@ -146,11 +146,11 @@ func TestTransactionFail(t *testing.T) {
 
 		// Insert data to the database
 		_, err = tx.Exec("INSERT INTO tests(name, age, isSingle) VALUES(?, ?, ?)", "Marc", 22, true)
-		assert.NoError(t, err, "inserting data during a transaction should not cause an error")
+		assert.Error(t, err, "inserting data into a non existing table should cause an error")
 
 		// Commit the transaction
 		err = tx.Commit()
-		assert.NoError(t, err, "committing a transaction should not cause an error")
+		assert.Error(t, err, "committing a transaction after an error occurred did not cause an error")
 
 		// Count the amount of rows after the transaction failed
 		rowsAfter, err := db.Query("SELECT COUNT(*) FROM test")

@@ -244,7 +244,7 @@ func TestInsertValues(t *testing.T) {
 		// Comparing times directly does not work, as timestamps also contains a
 		// monotonic clock reading, which is never stored in the database.
 		assert.True(t, dateBefore.Equal(dateAfter), "An error ocurred parsing the database")
-		assert.Equal(t, time.Local, dateAfter.Location(), "The database should by default always return local times")
+		assert.Equal(t, time.UTC, dateAfter.Location(), "The database should by default always return local times")
 		assert.Equal(t, heightBefore, heightAfter, "An error ocurred parsing the database")
 		assert.Equal(t, id2Before, id2After, "An error ocurred parsing the database")
 
