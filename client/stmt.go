@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/codenotary/immudb/pkg/api/schema"
+	"github.com/codenotary/immudb/pkg/client"
 	"github.com/tauu/immusql/common"
 )
 
@@ -83,12 +84,14 @@ func (s *stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driv
 	params := namedValueToMapString(args)
 	// Execute the query as part of the transaction,
 	// if there is an active transaction.
-	var res *schema.SQLQueryResult
+	var res client.SQLQueryRowReader
 	var err error
 	if s.conn.tx != nil {
-		res, err = s.conn.tx.SQLQuery(ctx, s.query, params)
+		res, err = s.conn.tx.SQLQueryReader(ctx, s.query, params)
+		//res, err = s.conn.tx.SQLQuery(ctx, s.query, params)
 	} else {
-		res, err = s.conn.client.SQLQuery(ctx, s.query, params, false)
+		res, err = s.conn.client.SQLQueryReader(ctx, s.query, params)
+		//res, err = s.conn.client.SQLQuery(ctx, s.query, params, false)
 	}
 	if err != nil {
 		return nil, err

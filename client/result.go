@@ -6,9 +6,9 @@ import (
 	"io"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/codenotary/immudb/pkg/api/schema"
+	"github.com/codenotary/immudb/pkg/client"
 	"github.com/tauu/immusql/common"
 )
 
@@ -77,7 +77,7 @@ func (r result) RowsAffected() (int64, error) {
 
 // rows contains the rows retrieved by immudb after executing a query.
 type rows struct {
-	data  *schema.SQLQueryResult
+	data  client.SQLQueryRowReader
 	index int
 }
 
@@ -86,11 +86,11 @@ type rows struct {
 // Columns returns the name of the columns of the rows.
 func (r *rows) Columns() []string {
 	// Retrieve the columns in the query result.
-	immudbCols := r.data.GetColumns()
+	immudbCols := r.data.Columns()
 	// Create a sting array and insert all names into it.
 	columns := make([]string, len(immudbCols))
 	for i, col := range immudbCols {
-		name := col.GetName()
+		name := col.Name
 		// immudb returns column names enclosed in ( )
 		// and also includes the name of the database.
 		// database/sql expects only the column name though,
@@ -115,33 +115,18 @@ func (r *rows) Close() error {
 
 // Next returns the next row of the query result.
 func (r *rows) Next(dest []driver.Value) error {
-	// Get the rows.
-	rows := r.data.GetRows()
 	// Check if the last row has already been read.
-	if r.index >= len(rows) {
+	if !r.data.Next() {
 		return io.EOF
 	}
+	// Get the next row.
+	row, err := r.data.Read()
+	if err != nil {
+		return err
+	}
 	// Write value to destination slice.
-	row := rows[r.index]
-	values := row.GetValues()
-	for i, value := range values {
-		switch v := value.Value.(type) {
-		case *schema.SQLValue_Null:
-			dest[i] = nil
-		case *schema.SQLValue_N:
-			dest[i] = v.N
-		case *schema.SQLValue_S:
-			dest[i] = v.S
-		case *schema.SQLValue_B:
-			dest[i] = v.B
-		case *schema.SQLValue_Bs:
-			dest[i] = v.Bs
-		case *schema.SQLValue_F:
-			dest[i] = v.F
-		case *schema.SQLValue_Ts:
-			// Convert micro seconds since epoch into a time value.
-			dest[i] = time.UnixMicro(v.Ts)
-		}
+	for i, value := range row {
+		dest[i] = value
 	}
 	// Advance the index.
 	r.index = r.index + 1
@@ -153,11 +138,11 @@ func (r *rows) Next(dest []driver.Value) error {
 // ColumnTypeDatabaseTypeName returns the type of the index-th column in the result.
 func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
 	// Retrieve the columns in the query result.
-	immudbCols := r.data.GetColumns()
+	immudbCols := r.data.Columns()
 	if index >= len(immudbCols) {
 		return ""
 	}
-	typeName := immudbCols[index].GetType()
+	typeName := immudbCols[index].Type
 	fmt.Printf("typeName: %v\n", typeName)
 	return typeName
 }
@@ -185,10 +170,10 @@ func (r *rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok b
 // ColumnTypeScanType returns the type of a go value into which the value of the index-th column can be scanned.
 func (r *rows) ColumnTypeScanType(index int) reflect.Type {
 	// Retrieve the columns in the query result.
-	immudbCols := r.data.GetColumns()
+	immudbCols := r.data.Columns()
 	if index >= len(immudbCols) {
 		return nil
 	}
-	typeName := immudbCols[index].GetType()
+	typeName := immudbCols[index].Type
 	return common.ColumnTypeScanType(typeName)
 }
