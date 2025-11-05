@@ -154,7 +154,10 @@ func (conn *immudbConn) ResetSession(ctx context.Context) error {
 		if origDB == nil {
 			return driver.ErrBadConn
 		}
-		conn.client.UseDatabase(ctx, origDB)
+		_, err = conn.client.UseDatabase(ctx, origDB)
+		if err != nil {
+			return driver.ErrBadConn
+		}
 	}
 	return nil
 }
