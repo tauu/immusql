@@ -121,7 +121,7 @@ func (conn *immudbConn) Ping(ctx context.Context) error {
 		return driver.ErrBadConn
 	}
 	// Perform a health check.
-	err := conn.client.HealthCheck(ctx)
+	_, err := conn.client.ServerInfo(ctx, &schema.ServerInfoRequest{})
 	if err != nil {
 		return driver.ErrBadConn
 	}
@@ -141,20 +141,20 @@ func (conn *immudbConn) ResetSession(ctx context.Context) error {
 	// is different from the database which was used at the start of the session.
 	opts := conn.client.GetOptions()
 	if opts.CurrentDatabase != opts.Database {
-		dbs, err := conn.client.DatabaseList(ctx)
+		dbs, err := conn.client.DatabaseListV2(ctx)
 		if err != nil {
 			return driver.ErrBadConn
 		}
-		var origDB *schema.Database
+		var origDB *schema.DatabaseInfo
 		for _, db := range dbs.GetDatabases() {
-			if db.GetDatabaseName() == opts.Database {
+			if db.Name == opts.Database {
 				origDB = db
 			}
 		}
 		if origDB == nil {
 			return driver.ErrBadConn
 		}
-		_, err = conn.client.UseDatabase(ctx, origDB)
+		_, err = conn.client.UseDatabase(ctx, &schema.Database{DatabaseName: origDB.Name})
 		if err != nil {
 			return driver.ErrBadConn
 		}
