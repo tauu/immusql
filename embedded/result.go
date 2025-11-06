@@ -177,7 +177,10 @@ func (r *rows) Next(dest []driver.Value) error {
 		case sql.BLOBType:
 			dest[i] = value.RawValue()
 		case sql.TimestampType:
-			dest[i] = value.RawValue().(time.Time)
+			value, ok := value.RawValue().(time.Time)
+			if ok {
+				dest[i] = value
+			}
 			// In previous versions the time was returned in local time as the
 			// immudb client pkg also returned the time in the local zone.
 			// As it no longer does (v1.10.0), the embedded version also does
